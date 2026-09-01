@@ -51,9 +51,11 @@ export default function TrialExamPage() {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
-  // Timer interval ref
+  // Timer & file input refs
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 1. Start or resume attempt on mount
   useEffect(() => {
@@ -181,8 +183,33 @@ export default function TrialExamPage() {
     }
   };
 
-  const handleFileUpload = async (questionId: number, file: File) => {
+  const handleFileUpload = async (questionId: number, file: File, allowedExtensions?: string) => {
     if (!attempt) return;
+
+    // 1. Client-side file size check (Max 50 Mo)
+    const MAX_SIZE_BYTES = 50 * 1024 * 1024;
+    if (file.size > MAX_SIZE_BYTES) {
+      showToast('Le fichier est trop volumineux. La taille maximale autorisée est de 50 Mo.', 'error');
+      return;
+    }
+
+    // 2. Client-side extension check
+    if (allowedExtensions) {
+      const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+      const allowedList = allowedExtensions
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean);
+
+      if (allowedList.length > 0 && !allowedList.includes(ext)) {
+        showToast(
+          `Format '${ext}' non autorisé. Formats acceptés : ${allowedList.join(', ')}`,
+          'error'
+        );
+        return;
+      }
+    }
+
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
@@ -198,7 +225,7 @@ export default function TrialExamPage() {
           uploaded_filename: res.data.filename,
         },
       }));
-      showToast('Fichier téléversé avec succès !', 'success');
+      showToast(`Fichier "${res.data.filename}" téléversé avec succès !`, 'success');
     } catch (err: any) {
       showToast(err.response?.data?.detail || 'Erreur lors du dépôt du fichier.', 'error');
     } finally {
@@ -528,38 +555,77 @@ export default function TrialExamPage() {
                     )}
 
                     {/* Dropzone / Upload Area */}
-                    <div className="p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900/40 text-center space-y-4">
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDragging(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDragging(false);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDragging(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) {
+                          handleFileUpload(currentQuestion.id, file, currentQuestion.practical_allowed_extensions);
+                        }
+                      }}
+                      className={`p-6 border-2 border-dashed rounded-2xl text-center space-y-4 transition-all ${
+                        isDragging
+                          ? 'border-cyan-400 bg-cyan-50/50 dark:bg-cyan-950/30 scale-[1.01]'
+                          : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/40'
+                      }`}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        accept={currentQuestion.practical_allowed_extensions}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleFileUpload(currentQuestion.id, file, currentQuestion.practical_allowed_extensions);
+                          }
+                          e.target.value = ''; // Reset input to allow re-uploading same filename
+                        }}
+                      />
+
                       {currentAnswer?.uploaded_filename ? (
                         <div className="flex flex-col items-center gap-3">
-                          <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                             <FileCheck className="w-6 h-6" />
                           </div>
                           <div>
                             <p className="text-sm font-bold text-slate-900 dark:text-white">
-                              Fichier déposé : {currentAnswer.uploaded_filename}
+                              Fichier déposé : <span className="text-cyan-600 dark:text-cyan-400 font-mono">{currentAnswer.uploaded_filename}</span>
                             </p>
-                            <p className="text-xs text-emerald-600 font-medium mt-0.5">
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
                               ✓ Fichier sauvegardé et prêt pour la correction du jury
                             </p>
                           </div>
-                          <label className="cursor-pointer inline-block">
-                            <input
-                              type="file"
-                              className="hidden"
-                              accept={currentQuestion.practical_allowed_extensions}
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) handleFileUpload(currentQuestion.id, f);
-                              }}
-                            />
-                            <Button size="sm" variant="outline" type="button" isLoading={isUploading}>
-                              Remplacer le fichier
-                            </Button>
-                          </label>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            type="button"
+                            isLoading={isUploading}
+                            onClick={() => fileInputRef.current?.click()}
+                            leftIcon={<Upload className="w-4 h-4" />}
+                          >
+                            Remplacer le fichier
+                          </Button>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-3">
-                          <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center">
+                          <div
+                            className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+                              isDragging ? 'bg-cyan-100 text-cyan-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                            }`}
+                          >
                             <Upload className="w-6 h-6" />
                           </div>
                           <div>
@@ -567,23 +633,22 @@ export default function TrialExamPage() {
                               Déposez votre fichier de mission ici
                             </p>
                             <p className="text-xs text-slate-500 mt-0.5">
-                              Formats autorisés : {currentQuestion.practical_allowed_extensions} (Max 50 Mo)
+                              Formats autorisés : <span className="font-mono text-slate-700 dark:text-slate-300">{currentQuestion.practical_allowed_extensions}</span> (Max 50 Mo)
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-1 italic">
+                              Glissez-déposez votre fichier directement ici ou cliquez sur le bouton ci-dessous
                             </p>
                           </div>
-                          <label className="cursor-pointer inline-block">
-                            <input
-                              type="file"
-                              className="hidden"
-                              accept={currentQuestion.practical_allowed_extensions}
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) handleFileUpload(currentQuestion.id, f);
-                              }}
-                            />
-                            <Button size="md" variant="primary" type="button" isLoading={isUploading}>
-                              Sélectionner un fichier
-                            </Button>
-                          </label>
+                          <Button
+                            size="md"
+                            variant="primary"
+                            type="button"
+                            isLoading={isUploading}
+                            onClick={() => fileInputRef.current?.click()}
+                            leftIcon={<Upload className="w-4 h-4" />}
+                          >
+                            Sélectionner un fichier
+                          </Button>
                         </div>
                       )}
                     </div>

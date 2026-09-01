@@ -5,11 +5,13 @@ from .views import (
     CustomLoginView,
     CurrentUserProfileView,
     ChangePasswordView,
-    ParticipantViewSet
+    ParticipantViewSet,
+    JuryViewSet
 )
 
 router = DefaultRouter()
 router.register(r'participants', ParticipantViewSet, basename='participants')
+router.register(r'jury', JuryViewSet, basename='jury')
 
 urlpatterns = [
     path('login/', CustomLoginView.as_view(), name='token_obtain_pair'),

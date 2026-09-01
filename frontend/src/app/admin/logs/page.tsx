@@ -7,12 +7,14 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Spinner } from '@/components/ui/Spinner';
-import { Activity, Search, RefreshCw, Clock } from 'lucide-react';
+import { Activity, Search, RefreshCw, Clock, ShieldAlert } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { AuditLog } from '@/types';
 import { formatDate } from '@/lib/utils';
 
 export default function AdminAuditLogsPage() {
+  const { isAdmin } = useAuth();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState('');
@@ -60,6 +62,20 @@ export default function AdminAuditLogsPage() {
         return <Badge variant="default" size="sm">{action}</Badge>;
     }
   };
+
+  if (!isAdmin) {
+    return (
+      <div className="p-8 max-w-4xl mx-auto text-center space-y-4">
+        <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+          <ShieldAlert className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-bold text-white">Accès Réservé aux Administrateurs</h2>
+        <p className="text-sm text-slate-400">
+          Seuls les administrateurs ont accès au journal d'audit et à la traçabilité des actions système.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 sm:p-8 space-y-6 max-w-7xl w-full mx-auto text-white">

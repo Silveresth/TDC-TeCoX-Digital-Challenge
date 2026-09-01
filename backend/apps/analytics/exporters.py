@@ -6,6 +6,8 @@ from apps.authentication.models import TdcUser
 from apps.competitions.models import Trial
 from apps.attempts.models import Attempt
 
+from openpyxl.utils import get_column_letter
+
 def export_leaderboard_excel() -> io.BytesIO:
     wb = Workbook()
     ws = wb.active
@@ -25,19 +27,19 @@ def export_leaderboard_excel() -> io.BytesIO:
     trials = list(Trial.objects.all().order_by('order', 'id'))
     participants = list(TdcUser.objects.filter(role='PARTICIPANT').order_by('participant_code'))
 
-    # Title row
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=6 + len(trials))
-    title_cell = ws.cell(row=1, column=1, value="TECOX DIGITAL CHALLENGE (TDC) — CLASSEMENT ET RÉSULTATS GÉNÉRAUX")
-    title_cell.font = Font(name="Calibri", size=14, bold=True, color="FFFFFF")
-    title_cell.fill = header_fill
-    title_cell.alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[1].height = 35
-
     # Headers
     headers = ["Rang", "Code Participant", "Nom & Prénom", "Groupe / Équipe"]
     for t in trials:
         headers.append(f"Épreuve {t.order}: {t.title} (/{t.max_score} pts)")
     headers.extend(["Score Total Obtenu", "Score Total Max", "Pourcentage Global (%)", "Épreuves Terminées", "Temps Total (min)"])
+
+    # Title row (merged across all columns)
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+    title_cell = ws.cell(row=1, column=1, value="TECOX DIGITAL CHALLENGE (TDC) — CLASSEMENT ET RÉSULTATS GÉNÉRAUX")
+    title_cell.font = Font(name="Calibri", size=14, bold=True, color="FFFFFF")
+    title_cell.fill = header_fill
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 35
 
     ws.append([]) # empty row
     ws.append(headers)
@@ -127,11 +129,15 @@ def export_leaderboard_excel() -> io.BytesIO:
             elif rank == 3:
                 cell.fill = PatternFill(start_color="FFEDD5", end_color="FFEDD5", fill_type="solid") # Bronze tint
 
-    # Auto adjust column widths
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
-        col_letter = col[0].column_letter
-        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+    # Auto adjust column widths safely
+    for col_idx in range(1, len(headers) + 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = 0
+        for row_idx in range(3, ws.max_row + 1):
+            val = ws.cell(row=row_idx, column=col_idx).value
+            if val is not None:
+                max_len = max(max_len, len(str(val)))
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
 
     output = io.BytesIO()
     wb.save(output)

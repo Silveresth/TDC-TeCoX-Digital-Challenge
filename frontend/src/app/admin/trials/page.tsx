@@ -18,13 +18,16 @@ import {
   Pause,
   ArrowRight,
   HelpCircle,
-  Laptop
+  Laptop,
+  ShieldAlert
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { Trial, TrialStatus } from '@/types';
 import { getCategoryLabel, getStatusBadge } from '@/lib/utils';
 
 export default function AdminTrialsPage() {
+  const { isAdmin } = useAuth();
   const { showToast } = useNotification();
   const [trials, setTrials] = useState<Trial[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +58,20 @@ export default function AdminTrialsPage() {
       showToast('Erreur lors du changement de statut.', 'error');
     }
   };
+
+  if (!isAdmin) {
+    return (
+      <div className="p-8 max-w-4xl mx-auto text-center space-y-4">
+        <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+          <ShieldAlert className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-bold text-white">Accès Réservé aux Administrateurs</h2>
+        <p className="text-sm text-slate-400">
+          Seuls les administrateurs ont le droit de modifier les épreuves, les questions et les statuts d'ouverture.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 sm:p-8 space-y-6 max-w-7xl w-full mx-auto">

@@ -290,10 +290,15 @@ class CompetitionSettingView(views.APIView):
 
 
 class ExportResultsView(views.APIView):
-    permission_classes = [IsAdminUserRole]
+    permission_classes = [IsJuryOrAdmin]
 
     def get(self, request):
-        format_type = request.query_params.get('format', 'excel').lower()
+        format_type = (
+            request.query_params.get('export_type')
+            or request.query_params.get('format')
+            or request.query_params.get('type')
+            or 'excel'
+        ).lower()
 
         if format_type == 'csv':
             csv_content = export_leaderboard_csv()

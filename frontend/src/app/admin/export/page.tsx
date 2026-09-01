@@ -49,8 +49,18 @@ export default function AdminExportPage() {
       window.URL.revokeObjectURL(url);
 
       showToast(`Fichier ${format.toUpperCase()} téléchargé avec succès !`, 'success');
-    } catch (err) {
-      showToast('Erreur lors du téléchargement des résultats.', 'error');
+    } catch (err: any) {
+      let errorMsg = 'Erreur lors du téléchargement des résultats.';
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          if (json.detail) errorMsg = json.detail;
+        } catch (_) {}
+      } else if (err.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
+      }
+      showToast(errorMsg, 'error');
     } finally {
       setIsExportingExcel(false);
       setIsExportingCsv(false);

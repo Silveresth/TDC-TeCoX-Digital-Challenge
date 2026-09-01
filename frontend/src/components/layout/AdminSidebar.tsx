@@ -7,6 +7,7 @@ import { useTheme } from '@/context/ThemeContext';
 import {
   LayoutDashboard,
   Users,
+  UserCheck,
   Layers,
   CheckSquare,
   Trophy,
@@ -22,12 +23,13 @@ import {
 export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
-  const links = [
+  const adminLinks = [
     { href: '/admin/dashboard', label: 'Vue d’ensemble', icon: LayoutDashboard },
     { href: '/admin/participants', label: 'Participants & Import', icon: Users },
+    { href: '/admin/jury', label: 'Membres du Jury', icon: UserCheck },
     { href: '/admin/trials', label: 'Épreuves & Barèmes', icon: Layers },
     { href: '/admin/grading', label: 'Corrections Missions', icon: CheckSquare },
     { href: '/admin/leaderboard', label: 'Classement TDC', icon: Trophy },
@@ -35,13 +37,21 @@ export function AdminSidebar() {
     { href: '/admin/export', label: 'Exports Excel / CSV', icon: FileSpreadsheet },
   ];
 
+  const juryLinks = [
+    { href: '/admin/grading', label: 'Corrections Missions', icon: CheckSquare },
+    { href: '/admin/leaderboard', label: 'Classement TDC', icon: Trophy },
+    { href: '/admin/export', label: 'Exports Excel / CSV', icon: FileSpreadsheet },
+  ];
+
+  const links = isAdmin ? adminLinks : juryLinks;
+
   const isActive = (path: string) => pathname === path || (path !== '/admin/dashboard' && pathname.startsWith(path));
 
   return (
     <aside className="w-64 shrink-0 hidden md:flex flex-col bg-slate-900 text-slate-200 border-r border-slate-800 min-h-screen sticky top-0">
       {/* Brand Header */}
       <div className="p-5 border-b border-slate-800 flex items-center justify-between">
-        <a href="/admin/dashboard" className="flex items-center gap-3">
+        <a href={isAdmin ? "/admin/dashboard" : "/admin/grading"} className="flex items-center gap-3">
           <img
             src="/logo-court.png"
             alt="TeCoX"
@@ -49,10 +59,10 @@ export function AdminSidebar() {
           />
           <div>
             <h1 className="text-xs font-bold tracking-wider text-white uppercase">
-              TDC Admin
+              {isAdmin ? 'TDC Admin' : 'Espace Jury TDC'}
             </h1>
             <span className="text-[10px] text-cyan-400 font-mono">
-              TeCoX Digital Challenge
+              {isAdmin ? 'Organisateur' : 'Évaluation & Notes'}
             </span>
           </div>
         </a>
@@ -61,7 +71,7 @@ export function AdminSidebar() {
       {/* Nav Menu */}
       <div className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-          Gestion de la compétition
+          {isAdmin ? 'Administration & Concours' : 'Pôle Évaluation Jury'}
         </div>
         {links.map((link) => {
           const Icon = link.icon;

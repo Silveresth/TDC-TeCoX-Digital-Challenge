@@ -64,6 +64,44 @@ class ParticipantAdminSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         if password:
             instance.set_password(password)
+class JuryAdminSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(read_only=True)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    graded_submissions_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TdcUser
+        fields = [
+            'id', 'username', 'email',
+            'first_name', 'last_name', 'full_name',
+            'role', 'phone_number', 'notes',
+            'avatar', 'is_active', 'last_activity',
+            'date_joined', 'password', 'graded_submissions_count'
+        ]
+        read_only_fields = ['id', 'date_joined', 'last_activity']
+
+    def get_graded_submissions_count(self, obj):
+        from apps.attempts.models import Answer
+        return Answer.objects.filter(graded_by=obj).count()
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        validated_data['role'] = 'JURY'
+        validated_data['is_staff'] = True
+        user = TdcUser(**validated_data)
+        if password:
+            user.set_password(password)
+        else:
+            user.set_password('Jury@TDC2026!')
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
         instance.save()
         return instance
 

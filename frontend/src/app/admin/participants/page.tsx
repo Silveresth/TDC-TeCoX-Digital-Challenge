@@ -30,6 +30,7 @@ import { User } from '@/types';
 import { formatDate } from '@/lib/utils';
 
 export default function AdminParticipantsPage() {
+  const { isAdmin } = useAuth();
   const { showToast } = useNotification();
   const [participants, setParticipants] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,6 +187,20 @@ export default function AdminParticipantsPage() {
     });
     setShowAddModal(true);
   };
+
+  if (!isAdmin) {
+    return (
+      <div className="p-8 max-w-4xl mx-auto text-center space-y-4">
+        <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+          <AlertCircle className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-bold text-white">Accès Réservé aux Administrateurs</h2>
+        <p className="text-sm text-slate-400">
+          Seul un administrateur organisateur peut gérer les comptes des participants.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 sm:p-8 space-y-6 max-w-7xl w-full mx-auto">

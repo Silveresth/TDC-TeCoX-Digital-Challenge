@@ -12,6 +12,7 @@ from .models import TdcUser
 from .serializers import (
     TdcUserSerializer,
     ParticipantAdminSerializer,
+    JuryAdminSerializer,
     CustomTokenObtainPairSerializer,
     ChangePasswordSerializer
 )
@@ -167,3 +168,42 @@ class ParticipantViewSet(viewsets.ModelViewSet):
         participant.save()
         status_str = "activé" if participant.is_active else "désactivé"
         return Response({'detail': f'Compte {status_str}.', 'is_active': participant.is_active})
+
+
+class JuryViewSet(viewsets.ModelViewSet):
+    serializer_class = JuryAdminSerializer
+    permission_classes = [IsAdminUserRole]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_queryset(self):
+        queryset = TdcUser.objects.filter(role='JURY')
+        search = self.request.query_params.get('search', None)
+        active = self.request.query_params.get('active', None)
+
+        if search:
+            queryset = queryset.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(username__icontains=search) |
+                Q(email__icontains=search)
+            )
+        if active is not None:
+            queryset = queryset.filter(is_active=(active.lower() == 'true'))
+
+        return queryset.order_by('last_name', 'first_name')
+
+    @action(detail=True, methods=['post'])
+    def reset_password(self, request, pk=None):
+        jury_user = self.get_object()
+        new_password = request.data.get('password', 'Jury@TDC2026!')
+        jury_user.set_password(new_password)
+        jury_user.save()
+        return Response({'detail': f'Mot de passe réinitialisé pour le membre du jury {jury_user.full_name}.'})
+
+    @action(detail=True, methods=['post'])
+    def toggle_active(self, request, pk=None):
+        jury_user = self.get_object()
+        jury_user.is_active = not jury_user.is_active
+        jury_user.save()
+        status_str = "activé" if jury_user.is_active else "désactivé"
+        return Response({'detail': f'Compte jury {status_str}.', 'is_active': jury_user.is_active})
